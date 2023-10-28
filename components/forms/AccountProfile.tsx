@@ -14,9 +14,10 @@ import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { UserValidation } from "@/lib/validations/user";
 import Image from "next/image";
-import { ChangeEvent } from "react";
+import { ChangeEvent, useState } from "react";
 import { Textarea } from "../ui/textarea";
 
+// Define a TypeScript interface for the component's props
 interface Props {
   user: {
     id: string;
@@ -30,8 +31,12 @@ interface Props {
 }
 
 const AccountProfile = ({ user, btnTitle }: Props) => {
+  // State for storing selected files
+  const [files, setFiles] = useState<File[]>([]);
+
+  // Initialize the form using react-hook-form
   const form = useForm({
-    resolver: zodResolver(UserValidation),
+    resolver: zodResolver(UserValidation), // Use Zod schema for form validation
     defaultValues: {
       profile_photo: user?.image || "",
       name: user?.name || "",
@@ -40,13 +45,33 @@ const AccountProfile = ({ user, btnTitle }: Props) => {
     },
   });
 
+  // Handle the selection of a profile image
   const handleImage = (
-    e: ChangeEvent,
+    e: ChangeEvent<HTMLInputElement>,
     fieldChange: (value: string) => void
   ) => {
     e.preventDefault();
+    const fileReader = new FileReader();
+
+    // Check if a file is selected
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      setFiles(Array.from(e.target.files));
+
+      // Check if the selected file is an image
+      if (!file.type.includes("image")) return;
+
+      fileReader.onload = async (event) => {
+        const imageDataUrl = event.target?.result?.toString() || "";
+        console.log(imageDataUrl); // Log the image data URL
+        fieldChange(imageDataUrl);
+      };
+
+      fileReader.readAsDataURL(file); // Read the selected image as a data URL
+    }
   };
 
+  // Handle form submission
   function onSubmit(values: z.infer<typeof UserValidation>) {
     // Do something with the form values.
     // ✅ This will be type-safe and validated.
@@ -72,7 +97,7 @@ const AccountProfile = ({ user, btnTitle }: Props) => {
                     width={96}
                     height={96}
                     priority
-                    className="rounded-full object-contain"
+                    className="rounded-full object-cover aspect-square"
                   />
                 ) : (
                   <Image
