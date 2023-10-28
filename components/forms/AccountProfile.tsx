@@ -16,6 +16,8 @@ import { UserValidation } from "@/lib/validations/user";
 import Image from "next/image";
 import { ChangeEvent, useState } from "react";
 import { Textarea } from "../ui/textarea";
+import { isBase64Image } from "@/lib/utils";
+import { useUploadThing } from "@/lib/uploadthing";
 
 // Define a TypeScript interface for the component's props
 interface Props {
@@ -33,6 +35,9 @@ interface Props {
 const AccountProfile = ({ user, btnTitle }: Props) => {
   // State for storing selected files
   const [files, setFiles] = useState<File[]>([]);
+
+  // Obtain the `startUpload` function from the `useUploadThing` hook
+  const { startUpload } = useUploadThing("media");
 
   // Initialize the form using react-hook-form
   const form = useForm({
@@ -63,7 +68,6 @@ const AccountProfile = ({ user, btnTitle }: Props) => {
 
       fileReader.onload = async (event) => {
         const imageDataUrl = event.target?.result?.toString() || "";
-        console.log(imageDataUrl); // Log the image data URL
         fieldChange(imageDataUrl);
       };
 
@@ -72,11 +76,22 @@ const AccountProfile = ({ user, btnTitle }: Props) => {
   };
 
   // Handle form submission
-  function onSubmit(values: z.infer<typeof UserValidation>) {
-    // Do something with the form values.
-    // ✅ This will be type-safe and validated.
-    console.log(values);
-  }
+  const onSubmit = async (values: z.infer<typeof UserValidation>) => {
+    const blob = values.profile_photo;
+
+    // Check if the profile photo has changed to an image
+    const hasImageChanged = isBase64Image(blob);
+
+    if (hasImageChanged) {
+      // Upload the selected image and update the profile photo URL
+      const imgRes = await startUpload(files);
+      if (imgRes && imgRes[0].fileUrl) {
+        values.profile_photo = imgRes[0].fileUrl;
+      }
+    }
+
+    // TODO: Update user profile
+  };
 
   return (
     <Form {...form}>
