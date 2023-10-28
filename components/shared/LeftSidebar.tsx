@@ -5,7 +5,6 @@ import { SignOutButton, SignedIn } from "@clerk/clerk-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { classNames } from "uploadthing/client";
 
 const LeftSidebar = () => {
   const router = useRouter();
