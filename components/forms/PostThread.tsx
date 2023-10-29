@@ -16,6 +16,7 @@ import { Textarea } from "../ui/textarea";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { usePathname, useRouter } from "next/navigation";
 import { ThreadValidation } from "@/lib/validations/thread";
+import { createThread } from "@/lib/actions/thread.actions";
 
 // Define a TypeScript interface for the component's props
 interface Props {
@@ -43,7 +44,16 @@ const PostThread = ({ userId }: { userId: string }) => {
     },
   });
 
-  const onSubmit = async () => {};
+  const onSubmit = async (values: z.infer<typeof ThreadValidation>) => {
+    await createThread({
+      text: values.thread,
+      author: userId,
+      communityId: null,
+      path: pathname,
+    });
+
+    router.push("/");
+  };
 
   return (
     <Form {...form}>
