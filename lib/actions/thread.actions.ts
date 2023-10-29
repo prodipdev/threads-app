@@ -13,7 +13,7 @@ interface Params {
   path: string;
 }
 
-// Create a new Thread
+// Create a new thread in the database
 export async function createThread({
   text,
   author,
@@ -21,63 +21,108 @@ export async function createThread({
   path,
 }: Params) {
   try {
+    // Connect to the database
     connectToDB();
 
+    // Create a new thread with provided text and author, assigning null to the community
     const createdThread = await Thread.create({
       text,
       author,
       community: null,
     });
 
-    // Update User model
+    // Update the User model to link the created thread with the author
     await User.findByIdAndUpdate(author, {
       $push: { threads: createdThread._id },
     });
 
+    // Revalidate the provided path
     revalidatePath(path);
   } catch (error: any) {
+    // Handle and report any errors
     throw new Error(`Error creating thread: ${error.message}`);
   }
 }
 
-// Function for paginated post retrieval from a database.
+// Fetch a paginated list of posts from the database
 export async function fetchPosts(pageNumber = 1, pageSize = 20) {
   try {
-    // Establish a connection to the database.
+    // Connect to the database
     connectToDB();
 
-    // Calculate the number of posts to skip based on the requested page and page size.
+    // Calculate the number of posts to skip for the requested page
     const skipAmount = (pageNumber - 1) * pageSize;
 
-    // Query for top-level threads (posts with no parent) and sort them by creation date in descending order.
+    // Query top-level threads, sort them by creation date, and apply pagination
     const postsQuery = Thread.find({ parentId: { $in: [null, undefined] } })
       .sort({ createAt: "desc" })
-      .skip(skipAmount) // Skip to the appropriate page
-      .limit(pageSize) // Limit the number of posts per page
-      .populate({ path: "author", model: User }) // Populate the author information
+      .skip(skipAmount)
+      .limit(pageSize)
+      .populate({ path: "author", model: User })
       .populate({
         path: "children",
         populate: {
           path: "author",
           model: User,
-          select: "_id name parentId image", // Select specific fields for the author
+          select: "_id name parentId image",
         },
       });
 
-    // Retrieve the total count of top-level posts for pagination purposes.
+    // Retrieve the total count of top-level posts for pagination
     const totalPostsCount = await Thread.countDocuments({
       parentId: { $in: [null, undefined] },
     });
 
-    // Execute the query to fetch posts.
+    // Execute the query to fetch posts and determine if more are available
     const posts = await postsQuery.exec();
-
-    // Check if there are more posts available for the next page.
     const isNext = totalPostsCount > skipAmount + posts.length;
 
-    // Return the fetched posts and a flag indicating if there are more posts for the next page.
+    // Return the fetched posts and a flag indicating if more posts are available
     return { posts, isNext };
   } catch (error: any) {
-    throw new Error(`Error creating fetch posts: ${error.message}`);
+    // Handle and report any errors
+    throw new Error(`Error fetching posts: ${error.message}`);
+  }
+}
+
+// Get a thread by its unique identifier
+export async function fetchThreadById(id: string) {
+  try {
+    // Connect to the database
+    connectToDB();
+
+    // Fetch the thread by its unique ID and populate related data
+    const thread = await Thread.findById(id)
+      .populate({
+        path: "author",
+        model: User,
+        select: "_id id name image",
+      })
+      .populate({
+        path: "children",
+        populate: [
+          {
+            path: "author",
+            model: User,
+            select: "_id id name parentId image",
+          },
+          {
+            path: "children",
+            model: Thread,
+            populate: {
+              path: "author",
+              model: User,
+              select: "_id id name parentId image",
+            },
+          },
+        ],
+      })
+      .exec();
+
+    // Return the fetched thread
+    return thread;
+  } catch (error: any) {
+    // Handle and report any errors
+    throw new Error(`Error fetching thread by id: ${error.message}`);
   }
 }
